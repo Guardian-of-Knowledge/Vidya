@@ -41,14 +41,12 @@ jobs:
           storePassword=${{ secrets.KEYSTORE_PASSWORD }}
           keyAlias=${{ secrets.KEY_ALIAS }}
           keyPassword=${{ secrets.KEY_PASSWORD }}
-          PROP
-
-      # If you don't have android/app/google-services.json for com.joydeep.vidya,
-      # you can disable the plugin during CI by uncommenting:
-      # - name: Disable google-services plugin (optional)
-      #   run: |
-      #     sed -i 's/id("com.google.gms.google-services")//g' android/app/build.gradle.kts
-      #     sed -i 's/id("com.google.gms.google-services").*apply false//g' android/settings.gradle.kts || true
+          PROP- name: Disable google-services if google-services.json is absent
+        run: |
+          if [ ! -f android/app/google-services.json ]; then
+            sed -i 's/id("com.google.gms.google-services")//g' android/app/build.gradle.kts || true
+            sed -i 's/^.*com.google.gms.google-services.*apply false.*$//g' android/settings.gradle.kts || true
+          fi
 
       - name: Build release APK
         run: flutter build apk --release
