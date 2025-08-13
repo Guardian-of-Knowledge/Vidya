@@ -9,7 +9,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    # Run shell steps from the Flutter project folder
+    # All shell "run:" steps execute inside the Flutter project folder
     defaults:
       run:
         working-directory: ebook_reader
@@ -22,7 +22,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -38,15 +38,15 @@ jobs:
           echo "flutter.sdk=$FLUTTER_HOME" > android/local.properties
           echo "sdk.dir=$ANDROID_SDK_ROOT" >> android/local.properties
 
-      - name: Decode keystore (if provided)
+      # Only decode keystore if the secret exists
+      - name: Decode keystore
         if: ${{ secrets.KEYSTORE_BASE64 != '' }}
         run: |
           mkdir -p android/app
-          echo "${KEYSTORE_BASE64}" | base64 --decode > android/app/vidya.jks
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/vidya.jks
 
-      - name: Create key.properties (if provided)
+      # Only create key.properties if all 4 secrets are present
+      - name: Create key.properties
         if: ${{ secrets.KEYSTORE_BASE64 != '' && secrets.KEYSTORE_PASSWORD != '' && secrets.KEY_ALIAS != '' && secrets.KEY_PASSWORD != '' }}
         run: |
           cat > android/key.properties <<'PROP'
@@ -56,12 +56,21 @@ jobs:
           keyPassword=${{ secrets.KEY_PASSWORD }}
           PROP
 
+      # If you don't have android/app/google-services.json for com.joydeep.vidya,
+      # you can disable the plugin during CI by uncommenting the lines below.
+      # - name: Disable google-services plugin (optional)
+      #   run: |
+      #     sed -i 's/id("com.google.gms.google-services")//g' android/app/build.gradle || true
+      #     sed -i 's/id("com.google.gms.google-services")//g' android/app/build.gradle.kts || true
+      #     sed -i 's/id("com.google.gms.google-services").*apply false//g' android/settings.gradle || true
+      #     sed -i 's/id("com.google.gms.google-services").*apply false//g' android/settings.gradle.kts || true
+
       - name: Build release APK
         run: flutter build apk --release
 
+      # Note: this "uses:" step runs from the repo root, so we keep the full path.
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: vidya-apk
-          # Path is relative to the repo root (not working-directory)
           path: ebook_reader/build/app/outputs/flutter-apk/*.apk
