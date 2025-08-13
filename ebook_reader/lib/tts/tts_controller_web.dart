@@ -1,13 +1,10 @@
 // lib/tts/tts_controller_web.dart
 // ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
 
-
-
-
 import 'dart:html' as html;
 import 'tts_controller.dart' as base;
 
-/// Web TTS implementation using browser SpeechSynthesis API.
+/// Web TTS implementation using the browser SpeechSynthesis API.
 class _WebTtsController implements base.TtsController {
   base.TtsState _state = base.TtsState.stopped;
 
@@ -50,5 +47,5 @@ class _WebTtsController implements base.TtsController {
   }
 }
 
-/// Factory function exported for conditional import (used by tts_factory.dart).
+/// Factory function used by conditional import.
 base.TtsController createTtsController() => _WebTtsController();

@@ -2,6 +2,7 @@
 import 'package:flutter_tts/flutter_tts.dart';
 import 'tts_controller.dart' as base;
 
+/// Mobile/desktop (non-web) implementation using flutter_tts.
 class _IoTtsController implements base.TtsController {
   final FlutterTts _tts = FlutterTts();
   base.TtsState _state = base.TtsState.stopped;
@@ -48,5 +49,5 @@ class _IoTtsController implements base.TtsController {
   }
 }
 
-/// Factory function exported for conditional import.
+/// Factory function used by conditional import.
 base.TtsController createTtsController() => _IoTtsController();
