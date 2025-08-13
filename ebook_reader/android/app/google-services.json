@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "827465597764",
+    "firebase_url": "https://book-reader-e4b18-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "book-reader-e4b18",
+    "storage_bucket": "book-reader-e4b18.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:827465597764:android:28b8478f69521a5c1e0d11",
+        "android_client_info": {
+          "package_name": "com.joydeep.vidya"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "827465597764-3hbisb3nav85a318pb7jcfhnsg86d3pu.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.joydeep.vidya",
+            "certificate_hash": "5a31aa5faaca275b8491c8cd0ece1b054fe1b0a2"
+          }
+        },
+        {
+          "client_id": "827465597764-66hl5u5ajlp9ggch49e6gvro3hcbmp58.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDpR9l1_WEw3XjfjKT3QohCZFUtLuBg3Rc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "827465597764-66hl5u5ajlp9ggch49e6gvro3hcbmp58.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "827465597764-ppndsjdq6qb750nt4f8dta4875o6a1gd.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.ebookReader"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

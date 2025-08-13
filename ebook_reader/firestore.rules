@@ -1,0 +1,112 @@
+// firestore.rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() { return request.auth != null; }
+    function isString(v)  { return v is string; }
+    function isNumber(v)  { return v is int || v is float; }
+    function isBool(v)    { return v is bool; }
+    function isTimestamp(v) { return v is timestamp; }
+    function isList(v)    { return v is list; }
+
+    // Helper: only allow specific fields to change on update
+    function changedKeysOnly(allowed) {
+      return request.resource.data.diff(resource.data).changedKeys().hasOnly(allowed);
+    }
+
+    // ===== Global catalog =====
+    match /books/{bookId} {
+      // Public reads (global catalog is browseable)
+      allow read: if true;
+
+      // Create: check id + name; other fields allowed but validated below on update too
+      allow create: if isSignedIn()
+                    && isString(request.resource.data.name)
+                    && request.resource.data.name.size() > 0
+                    && request.resource.data.name.size() <= 200
+                    // md5 (32 hex) or similar stable content ids
+                    && bookId.matches('^[0-9a-f]{16,32}$');
+
+      // Update from app: allow touching name/importedBy/chapterCount/updatedAt/createdAt
+      // (we upsert with merge:true in the app)
+      allow update: if isSignedIn()
+                    && changedKeysOnly(['name','importedBy','chapterCount','updatedAt','createdAt'])
+                    && (!('name' in request.resource.data)
+                        || (isString(request.resource.data.name)
+                            && request.resource.data.name.size() > 0
+                            && request.resource.data.name.size() <= 200))
+                    && (!('chapterCount' in request.resource.data)
+                        || (isNumber(request.resource.data.chapterCount)
+                            && request.resource.data.chapterCount >= 0))
+                    && (!('updatedAt' in request.resource.data)
+                        || isTimestamp(request.resource.data.updatedAt))
+                    && (!('createdAt' in request.resource.data)
+                        || isTimestamp(request.resource.data.createdAt));
+
+      allow delete: if false;
+
+      // Chapters under each book
+      match /chapters/{chapterId} {
+        allow read: if true;
+
+        // Create: index/title/text required; timestamps ok
+        allow create: if isSignedIn()
+                      && isNumber(request.resource.data.index)
+                      && isString(request.resource.data.title)
+                      && isString(request.resource.data.text)
+                      && (!('createdAt' in request.resource.data)
+                          || isTimestamp(request.resource.data.createdAt))
+                      && (!('updatedAt' in request.resource.data)
+                          || isTimestamp(request.resource.data.updatedAt));
+
+        // Update: only title/text and timestamps may change; index must remain the same
+        allow update: if isSignedIn()
+                      && changedKeysOnly(['title','text','updatedAt','createdAt'])
+                      && isString(request.resource.data.title)
+                      && isString(request.resource.data.text)
+                      && request.resource.data.index == resource.data.index
+                      && (!('updatedAt' in request.resource.data)
+                          || isTimestamp(request.resource.data.updatedAt))
+                      && (!('createdAt' in request.resource.data)
+                          || isTimestamp(request.resource.data.createdAt));
+
+        allow delete: if false;
+      }
+    }
+
+    // ===== Per-user shelves =====
+    match /users/{uid}/library/{bookId} {
+      // Only the owner can read
+      allow read: if isSignedIn() && request.auth.uid == uid;
+
+      // Owner can create/update their own library metadata
+      allow create, update: if isSignedIn()
+                            && request.auth.uid == uid
+                            && (!('name' in request.resource.data)
+                                || (isString(request.resource.data.name)
+                                    && request.resource.data.name.size() > 0
+                                    && request.resource.data.name.size() <= 200))
+                            && (!('isFavorite' in request.resource.data)
+                                || isBool(request.resource.data.isFavorite))
+                            && (!('lastChapterIndex' in request.resource.data)
+                                || isNumber(request.resource.data.lastChapterIndex))
+                            && (!('lastScrollOffset' in request.resource.data)
+                                || isNumber(request.resource.data.lastScrollOffset))
+                            && (!('bookmarks' in request.resource.data)
+                                || isList(request.resource.data.bookmarks))
+                            && (!('createdAt' in request.resource.data)
+                                || isTimestamp(request.resource.data.createdAt))
+                            && (!('updatedAt' in request.resource.data)
+                                || isTimestamp(request.resource.data.updatedAt));
+
+      allow delete: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    // ===== Web import metadata per user (for resume/prime across devices) =====
+    match /users/{uid}/webImportMeta/{bookId} {
+      // Only the owner can read/write their web-import state
+      allow read, create, update, delete: if isSignedIn() && request.auth.uid == uid;
+    }
+  }
+}
