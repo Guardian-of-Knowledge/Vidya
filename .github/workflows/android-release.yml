@@ -24,15 +24,41 @@ jobs:
         with:
           channel: stable
 
-      - name: Flutter pub get
-        run: flutter pub get
+      - name: Versions (debug)
+        run: |
+          flutter --version
+          java -version
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          echo "FLUTTER_HOME=${FLUTTER_HOME:-$HOME/flutter}"
+
+      # Ensure Gradle can find the Flutter SDK & Android SDK
+      - name: Create android/local.properties
+        run: |
+          mkdir -p android
+          echo "flutter.sdk=${FLUTTER_HOME:-$HOME/flutter}" > android/local.properties
+          echo "sdk.dir=$ANDROID_SDK_ROOT" >> android/local.properties
+          echo "---- android/local.properties ----"
+          cat android/local.properties
+
+      # Fail early if secrets are missing
+      - name: Validate signing secrets
+        run: |
+          [ -n "${{ secrets.KEYSTORE_BASE64 }}" ] || (echo "Missing KEYSTORE_BASE64" && exit 1)
+          [ -n "${{ secrets.KEYSTORE_PASSWORD }}" ] || (echo "Missing KEYSTORE_PASSWORD" && exit 1)
+          [ -n "${{ secrets.KEY_ALIAS }}" ] || (echo "Missing KEY_ALIAS" && exit 1)
+          [ -n "${{ secrets.KEY_PASSWORD }}" ] || (echo "Missing KEY_PASSWORD" && exit 1)
 
       - name: Decode keystore
         run: |
           mkdir -p android/app
           echo "$KEYSTORE_BASE64" | base64 --decode > android/app/vidya.jks
+          ls -lh android/app/vidya.jks
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+
+      - name: Verify keystore (sanity)
+        run: |
+          keytool -list -keystore android/app/vidya.jks -storepass "${{ secrets.KEYSTORE_PASSWORD }}" -alias "${{ secrets.KEY_ALIAS }}" -v | head -n 25
 
       - name: Create key.properties
         run: |
@@ -42,17 +68,25 @@ jobs:
           keyAlias=${{ secrets.KEY_ALIAS }}
           keyPassword=${{ secrets.KEY_PASSWORD }}
           PROP
+          echo "---- android/key.properties ----"
+          sed 's/=.*/=****/' android/key.properties
 
-      # Disable google-services plugin if google-services.json is missing
+      # If google-services.json is missing, remove the plugin so the build doesn't fail
       - name: Disable google-services if missing json
         run: |
           if [ ! -f android/app/google-services.json ]; then
+            echo "google-services.json not found -> disabling plugin for CI"
             sed -i 's/id("com.google.gms.google-services")//g' android/app/build.gradle.kts || true
             sed -i 's/^.*com.google.gms.google-services.*apply false.*$//g' android/settings.gradle.kts || true
+          else
+            echo "google-services.json present"
           fi
 
+      - name: Flutter pub get
+        run: flutter pub get
+
       - name: Build release APK
-        run: flutter build apk --release
+        run: flutter build apk --release -v
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
