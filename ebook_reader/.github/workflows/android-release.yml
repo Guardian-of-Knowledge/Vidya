@@ -43,8 +43,8 @@ jobs:
           keyPassword=${{ secrets.KEY_PASSWORD }}
           PROP
 
-      # If you do NOT have android/app/google-services.json for com.joydeep.vidya,
-      # uncomment the next step to disable the plugin during CI so the build won't fail.
+      # If you don't have android/app/google-services.json for com.joydeep.vidya,
+      # you can disable the plugin during CI by uncommenting:
       # - name: Disable google-services plugin (optional)
       #   run: |
       #     sed -i 's/id("com.google.gms.google-services")//g' android/app/build.gradle.kts
