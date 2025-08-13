@@ -9,7 +9,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    # Run all shell steps from the Flutter project folder
     defaults:
       run:
         working-directory: ebook_reader
@@ -64,8 +63,7 @@ jobs:
           keyPassword=${{ secrets.KEY_PASSWORD }}
           PROP
 
-      # If you don't have android/app/google-services.json for com.joydeep.vidya,
-      # you can disable the plugin during CI by uncommenting below:
+      # If you don't have android/app/google-services.json, you can disable the plugin in CI:
       # - name: Disable google-services plugin (optional)
       #   run: |
       #     sed -i 's/id("com.google.gms.google-services")//g' android/app/build.gradle || true
