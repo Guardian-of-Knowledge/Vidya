@@ -24,19 +24,34 @@ jobs:
         with:
           channel: stable
 
+      - name: Detect Flutter project dir
+        id: detect
+        run: |
+          if [ -f pubspec.yaml ]; then
+            echo "dir=." >> "$GITHUB_OUTPUT"
+          elif [ -f ebook_reader/pubspec.yaml ]; then
+            echo "dir=ebook_reader" >> "$GITHUB_OUTPUT"
+          else
+            echo "No pubspec.yaml found at repo root or ebook_reader/"; exit 1
+          fi
+          echo "Project dir: $(cat $GITHUB_OUTPUT)"
+
       - name: Print versions (debug)
         run: |
+          pwd
+          ls -la
+          echo "----"
+          ls -la "${{ steps.detect.outputs.dir }}"
           which flutter
           flutter --version
           java -version
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
 
-      # Create android/local.properties with the ACTUAL flutter sdk path
       - name: Create android/local.properties
+        working-directory: ${{ steps.detect.outputs.dir }}
         run: |
           mkdir -p android
           FLUTTER_BIN="$(which flutter)"
-          # /opt/hostedtoolcache/flutter/.../flutter/bin/flutter -> /opt/.../flutter
           FLUTTER_SDK="$(dirname "$(dirname "$FLUTTER_BIN")")"
           {
             echo "flutter.sdk=$FLUTTER_SDK"
@@ -45,7 +60,6 @@ jobs:
           echo "---- android/local.properties ----"
           cat android/local.properties
 
-      # Fail early if any signing secret is missing
       - name: Validate signing secrets
         run: |
           [ -n "${{ secrets.KEYSTORE_BASE64 }}" ] || (echo "Missing KEYSTORE_BASE64" && exit 1)
@@ -54,6 +68,7 @@ jobs:
           [ -n "${{ secrets.KEY_PASSWORD }}" ] || (echo "Missing KEY_PASSWORD" && exit 1)
 
       - name: Decode keystore
+        working-directory: ${{ steps.detect.outputs.dir }}
         run: |
           mkdir -p android/app
           echo "$KEYSTORE_BASE64" | base64 --decode > android/app/vidya.jks
@@ -61,12 +76,15 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
-      # Optional sanity check; if wrong password/alias, this step will fail early with a clear message
-      - name: Verify keystore
+      - name: Verify keystore (sanity)
+        working-directory: ${{ steps.detect.outputs.dir }}
         run: |
-          keytool -list -keystore android/app/vidya.jks -storepass "${{ secrets.KEYSTORE_PASSWORD }}" -alias "${{ secrets.KEY_ALIAS }}" -v | head -n 20
+          keytool -list -keystore android/app/vidya.jks \
+            -storepass "${{ secrets.KEYSTORE_PASSWORD }}" \
+            -alias "${{ secrets.KEY_ALIAS }}" -v | head -n 20
 
       - name: Create key.properties
+        working-directory: ${{ steps.detect.outputs.dir }}
         run: |
           cat > android/key.properties <<'PROP'
           storeFile=android/app/vidya.jks
@@ -77,20 +95,33 @@ jobs:
           echo "---- android/key.properties ----"
           sed 's/=.*/=****/' android/key.properties
 
-      # Force-disable google-services plugin in CI to avoid json/package mismatches
+      # Remove google-services plugin lines whether files are .gradle or .kts
       - name: Disable google-services plugin for CI
+        working-directory: ${{ steps.detect.outputs.dir }}
         run: |
-          sed -i 's/id("com.google.gms.google-services")//g' android/app/build.gradle.kts || true
-          sed -i 's/^.*com.google.gms.google-services.*apply false.*$//g' android/settings.gradle.kts || true
+          for f in android/app/build.gradle android/app/build.gradle.kts; do
+            if [ -f "$f" ]; then
+              sed -i 's/id("com.google.gms.google-services")//g' "$f" || true
+            fi
+          done
+          for f in android/settings.gradle android/settings.gradle.kts; do
+            if [ -f "$f" ]; then
+              sed -i 's/^.*com.google.gms.google-services.*apply false.*$//g' "$f" || true
+            fi
+          done
 
       - name: Flutter pub get
-        run: flutter pub get
+        working-directory: ${{ steps.detect.outputs.dir }}
+        run: |
+          test -f pubspec.yaml || (echo "pubspec.yaml not found in $PWD" && exit 1)
+          flutter pub get
 
       - name: Build release APK
+        working-directory: ${{ steps.detect.outputs.dir }}
         run: flutter build apk --release -v
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: vidya-apk
-          path: build/app/outputs/flutter-apk/*.apk
+          path: ${{ steps.detect.outputs.dir }}/build/app/outputs/flutter-apk/*.apk
